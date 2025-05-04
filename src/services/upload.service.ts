@@ -57,6 +57,7 @@ const uploadMulter = multer({
   limits: { fileSize: 1024 * 1024 * 1, fieldNameSize: 32 }, // 1 MB
 });
 function uploadProfile() {
+  logger.debug("Uploading file..");
   return uploadMulter.single("profileImage");
 }
 
