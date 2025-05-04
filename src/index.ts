@@ -10,6 +10,7 @@ async function main() {
     return;
   }
   logger.info("Connected to the database");
+
   // Server
   const SERVER_PORT = process.env.SERVER_PORT ?? 3000;
   app.listen(SERVER_PORT, () => {
@@ -17,19 +18,19 @@ async function main() {
     logger.info(`Environment: ${process.env.NODE_ENV}`);
     logger.info(`Health check: ${process.env.BASE_URL}/api/health`);
   });
-
-  // Exit application on unhandled rejection
-  process.on("unhandledRejection", (err: Error) => {
-    logger.error("UNHANDLED REJECTION! Shutting down...");
-    logger.error(err.name, err.message);
-  });
-
-  // Exit application on uncaught exception
-  process.on("uncaughtException", (err: Error) => {
-    logger.error("UNCAUGHT EXCEPTION! Shutting down...");
-    logger.error(err.name, err.message);
-  });
 }
+
+// Exit application on unhandled rejection
+process.on("unhandledRejection", (err: Error) => {
+  logger.error("UNHANDLED REJECTION! Shutting down...");
+  logger.error(err.name, err.message);
+});
+
+// Exit application on uncaught exception
+process.on("uncaughtException", (err: Error) => {
+  logger.error("UNCAUGHT EXCEPTION! Shutting down...");
+  logger.error(err.name, err.message);
+});
 
 process.on("SIGINT", async () => {
   logger.error("SIGINT received! Shutting down...");

@@ -2,13 +2,18 @@ import express from "express";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
+import { Database, Resource } from "@adminjs/sequelize";
 
 import errorHandler from "./middlewares/errorHandler";
 import requestLogger from "./middlewares/requestLogger";
 
 import authRouter from "./routes/auth.route";
 import healthRouter from "./routes/health.route";
-import notFoundRouter from "./routes/notFound.route"
+import notFoundRouter from "./routes/notFound.route";
+import AdminJS from "adminjs";
+import options from "./admin/options";
+import { buildAuthenticatedRouter } from "@adminjs/express";
+import provider from "./admin/auth-provider";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,11 +23,41 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// app.use(express.urlencoded({ extended: true }));
 // Request logger
 app.use(requestLogger);
 // Static files
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+
+// Admin Set-up
+AdminJS.registerAdapter({
+  Database,
+  Resource,
+});
+const admin = new AdminJS(options);
+
+if (process.env.NODE_ENV === "production") {
+  admin.initialize();
+} else {
+  admin.watch();
+}
+
+const router = buildAuthenticatedRouter(
+  admin,
+  {
+    cookiePassword: process.env.COOKIE_SECRET ?? "",
+    cookieName: "adminjs",
+    provider: provider,
+  },
+  null,
+  {
+    secret: process.env.COOKIE_SECRET,
+    saveUninitialized: true,
+    resave: true,
+  }
+);
+
+app.use(admin.options.rootPath, router);
 
 // Routes
 app.use("/api/auth", authRouter);
@@ -31,7 +66,7 @@ app.use("/api/auth", authRouter);
 app.use("/api/health", healthRouter);
 
 // 404
-app.use(notFoundRouter);
+// app.use(notFoundRouter);
 // Global error handler (should be the LAST middleware)
 app.use(errorHandler);
 

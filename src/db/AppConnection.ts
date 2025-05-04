@@ -5,6 +5,7 @@ const databaseUrl = `postgres://${process.env.DB_USER}:${process.env.DB_PASSWORD
 
 const sequelize = new Sequelize(databaseUrl, {
   logging: (msg) => logger.log("sql", msg),
+  dialect: "postgres",
 });
 sequelize.sync(); // Sync the database with the models
 export default sequelize;
