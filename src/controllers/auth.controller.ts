@@ -8,6 +8,7 @@ import StatusCodes from "../constants/StatusCodes";
 import ApiError from "../utils/ApiError";
 import { logger } from "../utils/Logger";
 import { createAccessToken, createRefreshToken } from "../utils/utils";
+import { RequestWithUser } from "../types/tokenType";
 
 /**
  * Handles a request to register a user.
@@ -141,10 +142,92 @@ async function refreshToken(req: Request, res: Response, next: NextFunction) {
   res.status(StatusCodes.OK).json(ApiResponse.success(data));
 }
 
+/**
+ * Handles a request to send a password reset email to a user.
+ *
+ * It expects the request body to have the user's email.
+ * It returns a success response with a message if successful.
+ *
+ * @param req - The Express request object containing the user's email.
+ * @param res - The Express response object used to send the response.
+ * @param next - The next middleware function in the stack.
+ *
+ * @throws {ApiError} If an error occurs while sending the password reset email.
+ */
+async function forgotPassword(req: Request, res: Response, next: NextFunction) {
+  const { data, error } = await tryCatch(authService.forgotPassword(req.body));
+  if (error instanceof ApiError) {
+    res.status(StatusCodes.OK).json(ApiResponse.fail(error));
+    return;
+  }
+  if (error) return next(error);
+  res.status(StatusCodes.OK).json(ApiResponse.success(data));
+}
+
+/**
+ * Handles a request to change a user's password.
+ *
+ * It expects the request body to have the old and new passwords.
+ * It returns a success response with a message if successful.
+ *
+ * @param req - The Express request object containing the user's old and new passwords.
+ * @param res - The Express response object used to send the change password response.
+ * @param next - The next middleware function in the stack.
+ *
+ * @throws {ApiError} If an error occurs while changing the password.
+ */
+async function changePassword(
+  request: RequestWithUser,
+  res: Response,
+  next: NextFunction
+) {
+  const { data, error } = await tryCatch(
+    authService.changePassword(request.body, request.user)
+  );
+  if (error instanceof ApiError) {
+    res.status(StatusCodes.OK).json(ApiResponse.fail(error));
+    return;
+  }
+  if (error) return next(error);
+  res.status(StatusCodes.OK).json(ApiResponse.success(data));
+}
+
+/**
+ * Handles a request to reset a user's password using the provided token and new password.
+ *
+ * It expects the request body to contain the new password details.
+ * It returns a success response with a message if the password reset is successful.
+ *
+ * @param request - The Express request object containing the user's token and new password details.
+ * @param res - The Express response object used to send the password reset response.
+ * @param next - The next middleware function in the stack.
+ *
+ * @throws {ApiError} If an error occurs while resetting the password.
+ */
+
+async function resetPassword(
+  request: RequestWithUser,
+  res: Response,
+  next: NextFunction
+) {
+  const { data, error } = await tryCatch(
+    authService.resetPassword(request.body, request.user)
+  );
+  if (error instanceof ApiError) {
+    res.status(StatusCodes.OK).json(ApiResponse.fail(error));
+    return;
+  }
+  if (error) return next(error);
+  res.status(StatusCodes.OK).json(ApiResponse.success(data));
+}
+
 export default {
   register,
   login,
   sendOTPEmail,
   verifyEmail,
   refreshToken,
+  forgotPassword,
+  changePassword,
+  resetPassword,
 };

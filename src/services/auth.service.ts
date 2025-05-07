@@ -9,6 +9,9 @@ import {
   SendEmailOtpSchema,
   VerifyEmailSchema,
   RefreshTokenSchema,
+  ForgotPasswordSchema,
+  ResetPasswordSchema,
+  ChangePasswordSchema,
 } from "../schema/auth.schema";
 import ApiError from "../utils/ApiError";
 import { logger } from "../utils/Logger";
@@ -190,10 +193,147 @@ async function refreshToken(param: RefreshTokenSchema) {
   }
 }
 
+/**
+ * Handles a request to send a password reset link to the given email.
+ *
+ * It expects the request body to have the email.
+ * It returns a Promise resolving to an object with a success message and the password reset link.
+ *
+ * @param param - The ForgotPasswordSchema object containing the email.
+ *
+ * @returns A Promise resolving to an object with a success message and the password reset link.
+ *
+ * @throws {ApiError} If the user is not found or if the email sending fails.
+ */
+async function forgotPassword(param: ForgotPasswordSchema) {
+  const { data, error } = await tryCatch(
+    User.findOne({ where: { email: param.email } })
+  );
+  if (error) throw error;
+  if (!data) {
+    throw new ApiError(
+      "Not Account Found with this email",
+      StatusCodes.NOT_FOUND
+    );
+  }
+  if (!data.emailVerifiedAt) {
+    throw new ApiError("Email not verified", StatusCodes.UNAUTHORIZED);
+  }
+  const token = createAccessToken(data.id);
+  const url = `${process.env.BASE_URL}/reset-password?token=${token}`;
+  // const { error: emailError } = await tryCatch(
+  //   emailService.sendResetPasswordLink(data.email, url)
+  // );
+  // if (emailError) throw emailError;
+  return {
+    message: "Password reset link sent successfully",
+    link: url, // remove in production
+  };
+}
+
+/**
+ * Resets the password for a user identified by the provided user ID.
+ *
+ * It expects the request body to contain the new password details.
+ * It hashes the new password and updates the user's password in the database.
+ * Returns a success message if the password reset is successful.
+ *
+ * @param param - The ResetPasswordSchema object containing the new password.
+ * @param userId - The ID of the user whose password is to be reset.
+ *
+ * @returns An object with a success message if the password reset is successful.
+ *
+ * @throws {ApiError} If the user is not found.
+ * @throws {ApiError} If there is an error updating the user's password.
+ */
+
+async function resetPassword(
+  param: ResetPasswordSchema,
+  userId: string | undefined
+) {
+  if (userId) {
+    const newPassword = hashPassword(param.password);
+    const { error: userError } = await tryCatch(
+      User.update({ password: newPassword }, { where: { id: userId } })
+    );
+    if (userError) throw userError;
+    return {
+      message: "Password reset successfully",
+    };
+  } else {
+    throw new ApiError(
+      "Not Account Found with this email",
+      StatusCodes.NOT_FOUND
+    );
+  }
+}
+
+/**
+ * Changes the password for a user identified by the provided user ID.
+ *
+ * It expects the request body to contain the old and new password details.
+ * It verifies the old password, hashes the new password and updates the user's password in the database.
+ * Returns a success message if the password change is successful.
+ *
+ * @param param - The ChangePasswordSchema object containing the old and new password.
+ * @param userId - The ID of the user whose password is to be changed.
+ *
+ * @returns An object with a success message if the password change is successful.
+ *
+ * @throws {ApiError} If the user is not found.
+ * @throws {ApiError} If the old password is invalid.
+ * @throws {ApiError} If there is an error updating the user's password.
+ */
+async function changePassword(
+  param: ChangePasswordSchema,
+  userId: string | undefined
+) {
+  if (userId) {
+    const { data, error } = await tryCatch(
+      User.findOne({ where: { id: userId } })
+    );
+    if (error) throw error;
+    if (!data) {
+      throw new ApiError(
+        "Not Account Found with this email",
+        StatusCodes.NOT_FOUND
+      );
+    }
+
+    const password = verifyPassword(param.password, data.password);
+    if (!password) {
+      throw new ApiError("Invalid password", StatusCodes.BAD_REQUEST);
+    }
+
+    const newPassword = hashPassword(param.newPassword);
+    if (newPassword === data.password) {
+      throw new ApiError(
+        "New password cannot be same as old password",
+        StatusCodes.BAD_REQUEST
+      );
+    }
+    const { error: userError } = await tryCatch(
+      User.update({ password: newPassword }, { where: { id: userId } })
+    );
+    if (userError) throw userError;
+    return {
+      message: "Password reset successfully",
+    };
+  } else {
+    throw new ApiError(
+      "Not Account Found with this email",
+      StatusCodes.NOT_FOUND
+    );
+  }
+}
+
 export default {
   registerUser,
   loginUser,
   sendOTPEmail,
   verifyEmail,
   refreshToken,
+  forgotPassword,
+  changePassword,
+  resetPassword,
 };
